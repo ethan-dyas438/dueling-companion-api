@@ -1,2 +1,0 @@
-class DuelSession < ApplicationRecord
-end

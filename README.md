@@ -1,24 +1,14 @@
-# README
+# Welcome to your CDK TypeScript project
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+This is a blank project for CDK development with TypeScript.
 
-Things you may want to cover:
+The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
-* Ruby version
+## Useful commands
 
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+* `npm run build`   compile typescript to js
+* `npm run watch`   watch for changes and compile
+* `npm run test`    perform the jest unit tests
+* `npx cdk deploy`  deploy this stack to your default AWS account/region
+* `npx cdk diff`    compare deployed stack with current state
+* `npx cdk synth`   emits the synthesized CloudFormation template
