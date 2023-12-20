@@ -42,19 +42,29 @@ export class DuelingCompanionApiStack extends cdk.Stack {
     });
 
     connectionsTable.grantReadWriteData(connectHandler);
+    connectionsTable.grantReadWriteData(disconnectHandler);
 
-    // webSocketApi.addRoute('addDuel', {
-    //   integration: new WebSocketLambdaIntegration('AddDuelHandler', addDuelHandler),
-    // });
+    const addDuelHandler = new NodejsFunction(this, 'AddDuelHandler', {
+      entry: 'lambdas/addDuelHandler.ts',
+      handler: 'handler',
+      environment: {
+        TABLE_NAME: connectionsTable.tableName,
+      },
+    });
 
-    // const connectionsArns = this.formatArn({
-    //   service: 'execute-api',
-    //   resourceName: `${devApiStage.stageName}/POST/*`,
-    //   resource: webSocketApi.apiId,
-    // });
+    webSocketApi.addRoute('addDuel', {
+      integration: new WebSocketLambdaIntegration('AddDuelHandler', addDuelHandler),
+    });
+
+    const connectionsArns = this.formatArn({
+      service: 'execute-api',
+      resourceName: `${devApiStage.stageName}/POST/*`,
+      resource: webSocketApi.apiId,
+    });
     
-    // addDuelHandler.addToRolePolicy(
-    //   new PolicyStatement({ actions: ['execute-api:ManageConnections'], resources: [connectionsArns] })
-    // );
+    addDuelHandler.addToRolePolicy(
+      new PolicyStatement({ actions: ['execute-api:ManageConnections'], resources: [connectionsArns] })
+    );
+    connectionsTable.grantReadWriteData(addDuelHandler);
   }
 }
