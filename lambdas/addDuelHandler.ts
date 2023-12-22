@@ -1,13 +1,9 @@
-import { APIGatewayProxyEvent } from 'aws-lambda';
-import { AWSError } from 'aws-sdk/lib/error';
-import { DocumentClient } from 'aws-sdk/clients/dynamodb';
-import ApiGatewayManagementApi from 'aws-sdk/clients/apigatewaymanagementapi';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import DynamoDB from 'aws-sdk/clients/dynamodb';
 
-const ddb = new DocumentClient({ apiVersion: '2012-08-10', region: process.env.AWS_REGION }); // TODO: Follow tutorial and simplify
+const ddb = new DynamoDB({ apiVersion: '2012-08-10', region: process.env.AWS_REGION });
 
-export const handler = async (event: APIGatewayProxyEvent) => {
-    let connectionData;
-
+export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const tableName = process.env.TABLE_NAME;
 
     if (!tableName) {
@@ -18,52 +14,51 @@ export const handler = async (event: APIGatewayProxyEvent) => {
         throw new Error('event body is missing');
     }
 
-    try {
-        connectionData = await ddb.scan({ TableName: tableName, ProjectionExpression: 'connectionId' }).promise();
-    } catch (e) {
-        let errorStack;
-        console.error(e);
+    const payload = JSON.parse(event.body).payload;
 
-        if (e instanceof Error) {
-            errorStack = e.stack;
-        }
-        return { statusCode: 500, body: errorStack };
-    }
+    const duelData = {
+        currentPlayer: { S: "" },
+        playerReady: {
+            M: {
+                A: { BOOL: false },
+                B: { BOOL: false },
+            }
+        },
+        playerLifePoints: { 
+            M: {
+                A: { N: "4000" },
+                B: { N: "4000" },
+            }
+        },
+        playerACards: { M: {} },
+        playerBCards: { M: {} },
+        extraMonsterOne: { S: "" },
+        extraMonsterTwo: { S: "" }
 
-    const apigwManagementApi = new ApiGatewayManagementApi({
-        apiVersion: '2018-11-29',
-        endpoint: event.requestContext.domainName + '/' + event.requestContext.stage,
-    });
+    };
 
-    const postData = JSON.parse(event.body).data;
-
-    const postCalls = (connectionData.Items ?? []).map(async ({ connectionId }) => {
-    try {
-        await apigwManagementApi.postToConnection({ ConnectionId: connectionId, Data: postData }).promise();
-    } catch (e) {
-        const { statusCode } = e as AWSError;
-        console.error(e);
-
-        if (statusCode === 410) {
-            console.log(`Found stale connection, deleting ${connectionId}`);
-            await ddb.delete({ TableName: tableName, Key: { connectionId } }).promise();
-        } else {
-            throw e;
-        }
-    }
-    });
+    // Calculate the expireAt time (7 days from now) in epoch second format
+    const oneWeekExpiration = Math.floor((new Date().getTime() + 7 * 24 * 60 * 60 * 1000) / 1000);
 
     try {
-        await Promise.all(postCalls);
-    } catch (e) {
-        let errorStack;
-        console.error(e);
-
-        if (e instanceof Error) {
-            errorStack = e.stack;
-        }
-        return { statusCode: 500, body: errorStack };
+        await ddb
+        .putItem({
+            TableName: tableName,
+            Item: {
+            duelId: { S: payload.duelId },
+            playerAId: { S: payload.aId },
+            playerBId: { S: "" },
+            duelData: { M: duelData },
+            duelExpiration: { N: oneWeekExpiration.toString() }
+            },
+        })
+        .promise();
+    } catch (err) {
+        return { statusCode: 500, body: 'Failed to add duel: ' + JSON.stringify(err) };
     }
 
-    return { statusCode: 200, body: 'Data sent.' };
+    return {
+        statusCode: 200,
+        body: 'Added Duel',
+    };
 };
