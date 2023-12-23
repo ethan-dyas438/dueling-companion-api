@@ -23,16 +23,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         Key: {
             duelId: { S: payload.duelId }
         },
-        ConditionExpression: "#playerAId = :playerAId",
-        ExpressionAttributeNames: {
-            "#playerAId": "playerAId"
-        },
+        ConditionExpression: "playerAId = :playerId",
         ExpressionAttributeValues: {
-            ":playerAId": { S: payload.creatorId }
+            ":playerId": { S: event.requestContext.connectionId }
         }
       })
       .promise();
   } catch (err) {
+    console.error(err);
     return { statusCode: 500, body: 'Failed to add duel: ' + JSON.stringify(err) };
   }
 

@@ -8,7 +8,8 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 
-// TODO: Add websocket route for joining a duel and a standard rest API for querying duels that will then allow a user to join a duel
+// TODO: Add a standard rest API for querying duels that will then allow a user to join a duel
+// TODO: Use connectionIds as playerIds and then the connection table can be removed in favor of the duels table and then updates to an item should only be sent to the two players
 export class DuelingCompanionApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -60,6 +61,20 @@ export class DuelingCompanionApiStack extends cdk.Stack {
         TABLE_NAME: duelTable.tableName,
       },
     });
+    const joinDuelHandler = new NodejsFunction(this, 'JoinDuelHandler', {
+      entry: 'lambdas/joinDuelHandler.ts',
+      handler: 'handler',
+      environment: {
+        TABLE_NAME: duelTable.tableName,
+      },
+    });
+    const updateDuelHandler = new NodejsFunction(this, 'UpdateDuelHandler', {
+      entry: 'lambdas/updateDuelHandler.ts',
+      handler: 'handler',
+      environment: {
+        TABLE_NAME: duelTable.tableName,
+      },
+    });
     const deleteDuelHandler = new NodejsFunction(this, 'DeleteDuelHandler', {
       entry: 'lambdas/deleteDuelHandler.ts',
       handler: 'handler',
@@ -67,10 +82,18 @@ export class DuelingCompanionApiStack extends cdk.Stack {
         TABLE_NAME: duelTable.tableName,
       },
     });
-    duelTable.grantReadWriteData(addDuelHandler)
-    duelTable.grantReadWriteData(deleteDuelHandler)
+    duelTable.grantReadWriteData(addDuelHandler);
+    duelTable.grantReadWriteData(joinDuelHandler);
+    duelTable.grantReadWriteData(updateDuelHandler);
+    duelTable.grantReadWriteData(deleteDuelHandler);
     webSocketApi.addRoute('addDuel', {
       integration: new WebSocketLambdaIntegration('AddDuelHandler', addDuelHandler),
+    });
+    webSocketApi.addRoute('joinDuel', {
+      integration: new WebSocketLambdaIntegration('JoinDuelHandler', joinDuelHandler),
+    });
+    webSocketApi.addRoute('updateDuel', {
+      integration: new WebSocketLambdaIntegration('UpdateDuelHandler', updateDuelHandler),
     });
     webSocketApi.addRoute('deleteDuel', {
       integration: new WebSocketLambdaIntegration('AddDuelHandler', deleteDuelHandler),

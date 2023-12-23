@@ -46,7 +46,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             TableName: tableName,
             Item: {
             duelId: { S: payload.duelId },
-            playerAId: { S: payload.aId },
+            playerAId: { S: event.requestContext.connectionId },
             playerBId: { S: "" },
             duelData: { M: duelData },
             duelExpiration: { N: oneWeekExpiration.toString() }
@@ -54,6 +54,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         })
         .promise();
     } catch (err) {
+        console.error(err);
         return { statusCode: 500, body: 'Failed to add duel: ' + JSON.stringify(err) };
     }
 

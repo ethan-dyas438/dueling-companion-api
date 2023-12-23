@@ -20,6 +20,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   try {
     await ddb.delete(deleteParams).promise();
   } catch (err) {
+    console.error(err);
     return { statusCode: 500, body: 'Failed to disconnect: ' + JSON.stringify(err) };
   }
 
