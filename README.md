@@ -39,6 +39,20 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app.
 }
 ```
 
+## Rejoin Duel Example
+
+* Requires the oldConnectionId of the player in order to rejoin and their connectionId should no longer be in the connections table
+
+```
+{
+	"action": "rejoinDuel",
+	"payload": {
+		"duelId": "1",
+		"oldConnectionId": "Qdav5dwhCYcCJiQ="
+	}
+}
+```
+
 ## Update Duel Example
 
 * Requires the connectionId to be equal to player A or player B to be make the update

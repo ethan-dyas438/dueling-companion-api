@@ -7,10 +7,8 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
-import { Cors, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, ApiKeySourceType, Cors, LambdaIntegration, RestApi, UsagePlan } from 'aws-cdk-lib/aws-apigateway';
 
-// TODO: Add API Key to REST API: https://conermurphy.com/blog/build-rest-api-aws-cdk-api-gateway-lambda-dynamodb-api-key-authentication
-// TODO: Use connectionIds as playerIds and then the connection table can be removed in favor of the duels table and then updates to an item should only be sent to the two players
 export class DuelingCompanionApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -69,6 +67,14 @@ export class DuelingCompanionApiStack extends cdk.Stack {
         TABLE_NAME: duelTable.tableName,
       },
     });
+    const rejoinDuelHandler = new NodejsFunction(this, 'RejoinDuelHandler', {
+      entry: 'lambdas/rejoinDuelHandler.ts',
+      handler: 'handler',
+      environment: {
+        DUEL_TABLE_NAME: duelTable.tableName,
+        CONNECTIONS_TABLE_NAME: connectionsTable.tableName,
+      },
+    });
     const updateDuelHandler = new NodejsFunction(this, 'UpdateDuelHandler', {
       entry: 'lambdas/updateDuelHandler.ts',
       handler: 'handler',
@@ -85,6 +91,8 @@ export class DuelingCompanionApiStack extends cdk.Stack {
     });
     duelTable.grantReadWriteData(addDuelHandler);
     duelTable.grantReadWriteData(joinDuelHandler);
+    duelTable.grantReadWriteData(rejoinDuelHandler);
+    connectionsTable.grantReadData(rejoinDuelHandler);
     duelTable.grantReadWriteData(updateDuelHandler);
     duelTable.grantReadWriteData(deleteDuelHandler);
     webSocketApi.addRoute('addDuel', {
@@ -92,6 +100,9 @@ export class DuelingCompanionApiStack extends cdk.Stack {
     });
     webSocketApi.addRoute('joinDuel', {
       integration: new WebSocketLambdaIntegration('JoinDuelHandler', joinDuelHandler),
+    });
+    webSocketApi.addRoute('rejoinDuel', {
+      integration: new WebSocketLambdaIntegration('RejoinDuelHandler', rejoinDuelHandler),
     });
     webSocketApi.addRoute('updateDuel', {
       integration: new WebSocketLambdaIntegration('UpdateDuelHandler', updateDuelHandler),
@@ -125,6 +136,7 @@ export class DuelingCompanionApiStack extends cdk.Stack {
       })
     );
 
+    const restApiKey = new ApiKey(this, 'DuelRestApiKey');
     const restApi = new RestApi(this, 'DuelRestAPI', {
       restApiName: 'DuelRestAPI',
       defaultCorsPreflightOptions: {
@@ -134,8 +146,19 @@ export class DuelingCompanionApiStack extends cdk.Stack {
       deployOptions: {
         stageName: 'dev',
         description: 'Dev stage for testing Dueling Companion'
-      }
+      },
+      apiKeySourceType: ApiKeySourceType.HEADER,
     });
+    const usagePlan = new UsagePlan(this, 'UsagePlan', {
+      name: 'Usage Plan',
+      apiStages: [
+        {
+          api: restApi,
+          stage: restApi.deploymentStage,
+        },
+      ],
+    });
+    usagePlan.addApiKey(restApiKey);
     const getDuelHandler = new NodejsFunction(this, 'GetDuelHandler', {
       entry: 'lambdas/getDuelHandler.ts',
       handler: 'handler',
@@ -147,6 +170,8 @@ export class DuelingCompanionApiStack extends cdk.Stack {
     const duels = restApi.root.addResource('duels');
     const duel = duels.addResource('{duelId}');
     const duelsIntegration = new LambdaIntegration(getDuelHandler);
-    duel.addMethod('GET', duelsIntegration);
+    duel.addMethod('GET', duelsIntegration, {
+      apiKeyRequired: true,
+    });
   }
 }
