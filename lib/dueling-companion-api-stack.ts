@@ -7,8 +7,9 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
+import { Cors, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 
-// TODO: Add a standard rest API for querying duels that will then allow a user to join a duel
+// TODO: Add API Key to REST API: https://conermurphy.com/blog/build-rest-api-aws-cdk-api-gateway-lambda-dynamodb-api-key-authentication
 // TODO: Use connectionIds as playerIds and then the connection table can be removed in favor of the duels table and then updates to an item should only be sent to the two players
 export class DuelingCompanionApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -123,5 +124,29 @@ export class DuelingCompanionApiStack extends cdk.Stack {
         retryAttempts: 10,
       })
     );
+
+    const restApi = new RestApi(this, 'DuelRestAPI', {
+      restApiName: 'DuelRestAPI',
+      defaultCorsPreflightOptions: {
+        allowOrigins: Cors.ALL_ORIGINS,
+        allowMethods: Cors.ALL_METHODS,
+      },
+      deployOptions: {
+        stageName: 'dev',
+        description: 'Dev stage for testing Dueling Companion'
+      }
+    });
+    const getDuelHandler = new NodejsFunction(this, 'GetDuelHandler', {
+      entry: 'lambdas/getDuelHandler.ts',
+      handler: 'handler',
+      environment: {
+        TABLE_NAME: duelTable.tableName,
+      },
+    });
+    duelTable.grantReadData(getDuelHandler);
+    const duels = restApi.root.addResource('duels');
+    const duel = duels.addResource('{duelId}');
+    const duelsIntegration = new LambdaIntegration(getDuelHandler);
+    duel.addMethod('GET', duelsIntegration);
   }
 }
