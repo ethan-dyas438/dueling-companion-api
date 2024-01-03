@@ -17,20 +17,56 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const payload = JSON.parse(event.body).payload;
 
     try {
-        await ddb
-        .updateItem({
+        const duelResults = await ddb.query({
             TableName: tableName,
-            Key: {
-                duelId: { S: payload.duelId }
-            },
-            UpdateExpression: "SET duelData = :duelData",
-            ConditionExpression: "playerAId = :playerId OR playerBId = :playerId",
+            KeyConditionExpression: "duelId = :duelId",
+            FilterExpression: "playerAId = :playerId OR playerBId = :playerId",
             ExpressionAttributeValues: {
                 ":playerId": { S: event.requestContext.connectionId },
-                ":duelData": { M: DynamoDB.Converter.marshall(payload.duelData) }
+                ":duelId": { S: payload.duelId }
             }
-        })
-        .promise();
+        }).promise();
+
+        if (duelResults.Items && duelResults.Items.length === 1) {
+            const formattedDuel = DynamoDB.Converter.unmarshall(duelResults.Items[0] as DynamoDB.AttributeMap)
+
+            if (payload.duelData.currentPlayer) {
+                formattedDuel.duelData.currentPlayer = payload.duelData.currentPlayer
+            }
+            if (payload.duelData.playerReady) {
+                formattedDuel.duelData.playerReady = {
+                    ...formattedDuel.duelData.playerReady,
+                    ...payload.duelData.playerReady
+                }
+            }
+            if (payload.duelData.playerLifePoints) {
+                formattedDuel.duelData.playerLifePoints = {
+                    ...formattedDuel.duelData.playerLifePoints,
+                    ...payload.duelData.playerLifePoints
+                }
+            }
+            if (payload.duelData.playerACards) { }
+            if (payload.duelData.playerBCards) { }
+            if (payload.duelData.extraMonsterOne) { }
+            if (payload.duelData.extraMonsterTwo) { }
+
+            await ddb
+                .updateItem({
+                    TableName: tableName,
+                    Key: {
+                        duelId: { S: payload.duelId }
+                    },
+                    UpdateExpression: "SET duelData = :duelData",
+                    ConditionExpression: "playerAId = :playerId OR playerBId = :playerId",
+                    ExpressionAttributeValues: {
+                        ":playerId": { S: event.requestContext.connectionId },
+                        ":duelData": { M: DynamoDB.Converter.marshall(formattedDuel.duelData) }
+                    }
+                })
+                .promise();
+        } else {
+            throw new Error('Could not find valid duel to update.');
+        }
     } catch (err) {
         console.error(err);
         return { statusCode: 500, body: 'Failed to update duel: ' + JSON.stringify(err) };
