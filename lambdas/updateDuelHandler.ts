@@ -45,10 +45,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                     ...payload.duelData.playerLifePoints
                 }
             }
-            if (payload.duelData.playerACards) { }
-            if (payload.duelData.playerBCards) { }
-            if (payload.duelData.extraMonsterOne) { }
-            if (payload.duelData.extraMonsterTwo) { }
 
             await ddb
                 .updateItem({

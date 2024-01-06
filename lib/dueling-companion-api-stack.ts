@@ -8,10 +8,13 @@ import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { ApiKey, ApiKeySourceType, Cors, LambdaIntegration, RestApi, UsagePlan } from 'aws-cdk-lib/aws-apigateway';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 export class DuelingCompanionApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    const cardsBucket = new s3.Bucket(this, 'CardsBucket', { publicReadAccess: true })
 
     const connectionsTable = new dynamodb.Table(this, 'WebsocketConnections', {
       partitionKey: { name: 'connectionId', type: dynamodb.AttributeType.STRING },
@@ -166,11 +169,27 @@ export class DuelingCompanionApiStack extends cdk.Stack {
         TABLE_NAME: duelTable.tableName,
       },
     });
+    const cardUploadHandler = new NodejsFunction(this, 'CardUploadHandler', {
+      entry: 'lambdas/cardUploadHandler.ts',
+      handler: 'handler',
+      environment: {
+        TABLE_NAME: duelTable.tableName,
+        CARDS_BUCKET_NAME: cardsBucket.bucketName,
+      },
+    });
     duelTable.grantReadData(getDuelHandler);
+    duelTable.grantReadWriteData(cardUploadHandler);
+    cardsBucket.grantReadWrite(cardUploadHandler);
     const duels = restApi.root.addResource('duels');
+    const card = restApi.root.addResource('card');
     const duel = duels.addResource('{duelId}');
     const duelsIntegration = new LambdaIntegration(getDuelHandler);
     duel.addMethod('GET', duelsIntegration, {
+      apiKeyRequired: true,
+    });
+
+    const cardIntegration = new LambdaIntegration(cardUploadHandler);
+    card.addMethod('POST', cardIntegration, {
       apiKeyRequired: true,
     });
   }
