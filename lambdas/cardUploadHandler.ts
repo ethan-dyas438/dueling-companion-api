@@ -5,15 +5,17 @@ import S3 from 'aws-sdk/clients/s3';
 const ddb = new DynamoDB({ apiVersion: '2012-08-10', region: process.env.AWS_REGION });
 const s3 = new S3({ apiVersion: '2012-08-10', region: process.env.AWS_REGION });
 
-const uploadFileIntoS3 = async (file: string, cardKey: string, cardsBucket: string) => {
+const uploadFileIntoS3 = async (file: string, cardKey: string, fileType: string, cardsBucket: string) => {
     const options: S3.PutObjectRequest = {
         Bucket: cardsBucket,
         Key: cardKey,
-        Body: file,
+        Body: Buffer.from(file, 'base64'),
+        ContentEncoding: 'base64',
+        ContentType: `image/${fileType}`
     };
 
     try {
-        const cardObject = await s3.putObject(options).promise();
+        await s3.putObject(options).promise();
         console.log(
             `File uploaded into S3 bucket: "${process.env.CARDS_BUCKET_NAME
             }", with key: ${cardKey}`
@@ -65,22 +67,39 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
             if (payload.duelData.cardUpdate) {
                 const { createdDuel, cardSlot, cardImage } = payload.duelData.cardUpdate
-                const s3CardLink = await uploadFileIntoS3(
-                    cardImage.dataUrl,
-                    `${createdDuel ? 'playerA' : 'playerB'}${cardSlot}${payload.duelId}.${cardImage.format}`,
-                    cardsBucket
-                );
 
-                if (createdDuel) {
-                    formattedDuel.duelData.playerACards = {
-                        ...formattedDuel.duelData.playerACards,
-                        [`playerA${cardSlot}`]: s3CardLink
-                    };
+                if (cardSlot === 'extraMonsterOne' || cardSlot === 'extraMonsterTwo') {
+                    const s3CardLink = await uploadFileIntoS3(
+                        cardImage.base64String,
+                        `${payload.duelId}${cardSlot}.${cardImage.format}`,
+                        cardImage.format,
+                        cardsBucket
+                    );
+
+                    if (cardSlot === 'extraMonsterOne') {
+                        formattedDuel.duelData.extraMonsterOne = s3CardLink;
+                    } else {
+                        formattedDuel.duelData.extraMonsterTwo = s3CardLink;
+                    }
                 } else {
-                    formattedDuel.duelData.playerBCards = {
-                        ...formattedDuel.duelData.playerBCards,
-                        [`playerB${cardSlot}`]: s3CardLink
-                    };
+                    const s3CardLink = await uploadFileIntoS3(
+                        cardImage.base64String,
+                        `${payload.duelId}${createdDuel ? 'playerA' : 'playerB'}${cardSlot}.${cardImage.format}`,
+                        cardImage.format,
+                        cardsBucket
+                    );
+    
+                    if (createdDuel) {
+                        formattedDuel.duelData.playerACards = {
+                            ...formattedDuel.duelData.playerACards,
+                            [`playerA${cardSlot}`]: s3CardLink
+                        };
+                    } else {
+                        formattedDuel.duelData.playerBCards = {
+                            ...formattedDuel.duelData.playerBCards,
+                            [`playerB${cardSlot}`]: s3CardLink
+                        };
+                    }
                 }
 
                 await ddb

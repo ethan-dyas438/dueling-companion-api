@@ -84,13 +84,16 @@ export class DuelingCompanionApiStack extends cdk.Stack {
       environment: {
         TABLE_NAME: duelTable.tableName,
       },
+      timeout: cdk.Duration.seconds(5),
     });
     const deleteDuelHandler = new NodejsFunction(this, 'DeleteDuelHandler', {
       entry: 'lambdas/deleteDuelHandler.ts',
       handler: 'handler',
       environment: {
         TABLE_NAME: duelTable.tableName,
+        CARDS_BUCKET_NAME: cardsBucket.bucketName,
       },
+      timeout: cdk.Duration.seconds(5),
     });
     duelTable.grantReadWriteData(addDuelHandler);
     duelTable.grantReadWriteData(joinDuelHandler);
@@ -98,6 +101,7 @@ export class DuelingCompanionApiStack extends cdk.Stack {
     connectionsTable.grantReadData(rejoinDuelHandler);
     duelTable.grantReadWriteData(updateDuelHandler);
     duelTable.grantReadWriteData(deleteDuelHandler);
+    cardsBucket.grantReadWrite(deleteDuelHandler);
     webSocketApi.addRoute('addDuel', {
       integration: new WebSocketLambdaIntegration('AddDuelHandler', addDuelHandler),
     });
@@ -176,6 +180,7 @@ export class DuelingCompanionApiStack extends cdk.Stack {
         TABLE_NAME: duelTable.tableName,
         CARDS_BUCKET_NAME: cardsBucket.bucketName,
       },
+      timeout: cdk.Duration.seconds(8),
     });
     duelTable.grantReadData(getDuelHandler);
     duelTable.grantReadWriteData(cardUploadHandler);
