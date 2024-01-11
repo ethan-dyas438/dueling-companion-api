@@ -68,6 +68,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             if (payload.duelData.cardUpdate) {
                 const { createdDuel, cardSlot, cardImage } = payload.duelData.cardUpdate
 
+                if (cardImage.format !== 'jpeg' || cardImage.format !== 'png') {
+                    throw new Error('The uploaded card does not match the accepted formats.');
+                }
+
                 if (cardSlot === 'extraMonsterOne' || cardSlot === 'extraMonsterTwo') {
                     const s3CardLink = await uploadFileIntoS3(
                         cardImage.base64String,
@@ -92,7 +96,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                     if (createdDuel) {
                         formattedDuel.duelData.playerACards = {
                             ...formattedDuel.duelData.playerACards,
-                            [`playerA${cardSlot}`]: s3CardLink
+                            [`playerA${cardSlot}`]: s3CardLink // TODO: Instead of just writing the S3 link create the data object for the card.
                         };
                     } else {
                         formattedDuel.duelData.playerBCards = {
