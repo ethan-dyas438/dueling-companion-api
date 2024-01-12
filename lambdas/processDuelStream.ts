@@ -24,7 +24,6 @@ const postDuelData = async (api: ApiGatewayManagementApi, tableName: string, con
         if (statusCode === 410) {
             console.log(`Found stale connection, deleting ${connectionId}`);
             await ddb.deleteItem({ TableName: tableName, Key: { connectionId: { S: connectionId } } }).promise();
-            // TODO: Update duel player Ids if necessary.
         } else {
             throw e;
         }
@@ -42,8 +41,6 @@ export const handler = async (event: DynamoDBStreamEvent) => {
     if (!endpoint) {
         throw new Error('endpoint not specified in process.env.ENDPOINT');
     }
-
-    // const connectionData = await ddb.scan({ TableName: tableName, ProjectionExpression: 'connectionId' }).promise();
 
     const endpointUrl = new URL(endpoint);
     const apigwManagementApi = new ApiGatewayManagementApi({

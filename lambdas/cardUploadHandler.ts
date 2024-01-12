@@ -66,11 +66,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             const formattedDuel = DynamoDB.Converter.unmarshall(duelResults.Items[0] as DynamoDB.AttributeMap)
 
             if (payload.duelData.cardUpdate) {
-                const { createdDuel, cardSlot, cardImage } = payload.duelData.cardUpdate
+                const { createdDuel, cardSlot, cardImage, cardData } = payload.duelData.cardUpdate
 
                 if (cardImage.format !== 'jpeg' || cardImage.format !== 'png') {
                     throw new Error('The uploaded card does not match the accepted formats.');
                 }
+
+                const { chosenPosition, cardFlipped } = cardData;
 
                 if (cardSlot === 'extraMonsterOne' || cardSlot === 'extraMonsterTwo') {
                     const s3CardLink = await uploadFileIntoS3(
@@ -80,10 +82,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                         cardsBucket
                     );
 
+                    const fullCardData = {
+                        position: chosenPosition,
+                        flipped: cardFlipped,
+                        cardImage: s3CardLink,
+                        player: createdDuel ? 'a' : 'b'
+                    };
+
                     if (cardSlot === 'extraMonsterOne') {
-                        formattedDuel.duelData.extraMonsterOne = s3CardLink;
+                        formattedDuel.duelData.extraMonsterOne = fullCardData;
                     } else {
-                        formattedDuel.duelData.extraMonsterTwo = s3CardLink;
+                        formattedDuel.duelData.extraMonsterTwo = fullCardData;
                     }
                 } else {
                     const s3CardLink = await uploadFileIntoS3(
@@ -93,15 +102,21 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                         cardsBucket
                     );
     
+                    const fullCardData = {
+                        position: chosenPosition,
+                        flipped: cardFlipped,
+                        cardImage: s3CardLink
+                    };
+
                     if (createdDuel) {
                         formattedDuel.duelData.playerACards = {
                             ...formattedDuel.duelData.playerACards,
-                            [`playerA${cardSlot}`]: s3CardLink // TODO: Instead of just writing the S3 link create the data object for the card.
+                            [`playerA${cardSlot}`]: fullCardData
                         };
                     } else {
                         formattedDuel.duelData.playerBCards = {
                             ...formattedDuel.duelData.playerBCards,
-                            [`playerB${cardSlot}`]: s3CardLink
+                            [`playerB${cardSlot}`]: fullCardData
                         };
                     }
                 }
