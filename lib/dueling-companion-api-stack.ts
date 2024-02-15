@@ -14,6 +14,7 @@ export class DuelingCompanionApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // TODO: See if I can lock down this bucket so it is not completely public
     const cardsBucket = new s3.Bucket(this, 'CardsBucket', { publicReadAccess: true })
 
     const connectionsTable = new dynamodb.Table(this, 'WebsocketConnections', {

@@ -68,7 +68,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             if (payload.duelData.cardUpdate) {
                 const { createdDuel, cardSlot, cardImage, cardData } = payload.duelData.cardUpdate
 
-                if (cardImage.format !== 'jpeg' || cardImage.format !== 'png') {
+                if (cardImage.format !== 'jpeg' && cardImage.format !== 'png') {
                     throw new Error('The uploaded card does not match the accepted formats.');
                 }
 
