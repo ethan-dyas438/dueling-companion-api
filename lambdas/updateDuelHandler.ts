@@ -58,15 +58,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 }
             }
             if (payload.duelData.extraMonsterOne) {
-                formattedDuel.duelData.extraMonsterOne = {
-                    ...formattedDuel.duelData.extraMonsterOne,
-                    ...payload.duelData.extraMonsterOne
+                if (payload.duelData.extraMonsterOne === "delete") {
+                    formattedDuel.duelData.extraMonsterOne = null;
+                } else {
+                    formattedDuel.duelData.extraMonsterOne = {
+                        ...formattedDuel.duelData.extraMonsterOne,
+                        ...payload.duelData.extraMonsterOne
+                    }
                 }
             }
             if (payload.duelData.extraMonsterTwo) {
-                formattedDuel.duelData.extraMonsterTwo = {
-                    ...formattedDuel.duelData.extraMonsterTwo,
-                    ...payload.duelData.extraMonsterTwo
+                if (payload.duelData.extraMonsterTwo === "delete") {
+                    formattedDuel.duelData.extraMonsterTwo = null;
+                } else {
+                    formattedDuel.duelData.extraMonsterTwo = {
+                        ...formattedDuel.duelData.extraMonsterTwo,
+                        ...payload.duelData.extraMonsterTwo
+                    }
                 }
             }
 

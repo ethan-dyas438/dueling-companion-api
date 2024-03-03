@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import DynamoDB from 'aws-sdk/clients/dynamodb';
 import S3 from 'aws-sdk/clients/s3';
+import { randomUUID } from 'crypto';
 
 const ddb = new DynamoDB({ apiVersion: '2012-08-10', region: process.env.AWS_REGION });
 const s3 = new S3({ apiVersion: '2012-08-10', region: process.env.AWS_REGION });
@@ -73,11 +74,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 }
 
                 const { chosenPosition, cardFlipped } = cardData;
+                const fileUuid = randomUUID();
 
                 if (cardSlot === 'extraMonsterOne' || cardSlot === 'extraMonsterTwo') {
                     const s3CardLink = await uploadFileIntoS3(
                         cardImage.base64String,
-                        `${payload.duelId}${cardSlot}.${cardImage.format}`,
+                        `${payload.duelId}${cardSlot}${fileUuid}.${cardImage.format}`,
                         cardImage.format,
                         cardsBucket
                     );
@@ -97,7 +99,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 } else {
                     const s3CardLink = await uploadFileIntoS3(
                         cardImage.base64String,
-                        `${payload.duelId}${createdDuel ? 'playerA' : 'playerB'}${cardSlot}.${cardImage.format}`,
+                        `${payload.duelId}${createdDuel ? 'playerA' : 'playerB'}${cardSlot}${fileUuid}.${cardImage.format}`,
                         cardImage.format,
                         cardsBucket
                     );
