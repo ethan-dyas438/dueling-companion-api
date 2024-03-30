@@ -14,7 +14,7 @@ const deleteS3Files = async (duelId: string, cardsBucket: string) => {
   try {
     const duelCards = await s3.listObjects(options).promise();
 
-    if (!duelCards.IsTruncated && duelCards.Contents) {
+    if (!duelCards.IsTruncated && duelCards.Contents && duelCards.Contents.length > 0) {
       const deleteOptions: S3.DeleteObjectsRequest = {
         Bucket: cardsBucket,
         Delete: {
